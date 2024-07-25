@@ -25,9 +25,7 @@ import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 import static com.mojang.brigadier.builder.LiteralArgumentBuilder.literal;
 
@@ -40,6 +38,9 @@ public class Manhunt implements ModInitializer {
 
 	private final Set<UUID> hunters = new HashSet<>();
 	private final Set<UUID> speedrunners = new HashSet<>();
+	private final Map<UUID, UUID> map = new HashMap<>();
+
+	private final Timer timer = new Timer();
 
 	@Override
 	public void onInitialize() {
@@ -53,6 +54,7 @@ public class Manhunt implements ModInitializer {
 					final ServerCommandSource source = context.getSource();
 					final ServerPlayerEntity tracked = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
 					final ServerPlayerEntity player = source.getPlayer();
+					map.put(source.getPlayer().getUuid(), player.getUuid());
 					updateCompass(player, tracked);
 					return Command.SINGLE_SUCCESS;
 				})
@@ -84,6 +86,18 @@ public class Manhunt implements ModInitializer {
 			for (final ServerPlayerEntity player : pm.getPlayerList()) {
 				player.kill();
 			}
+			timer.schedule(new TimerTask() {
+				@Override
+				public void run() {
+					for (final UUID uuid : hunters) {
+						final ServerPlayerEntity hunter = pm.getPlayer(uuid);
+						if (hunter == null) continue;
+						final ServerPlayerEntity tracked = pm.getPlayer(uuid);
+						if (tracked == null) continue;
+						updateCompass(hunter, tracked);
+					}
+				}
+			}, 60*1000, 60*1000);
 			return Command.SINGLE_SUCCESS;
 		});
 
