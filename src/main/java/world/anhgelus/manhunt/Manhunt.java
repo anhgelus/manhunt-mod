@@ -14,6 +14,6 @@ public class Manhunt implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
-		
+
 	}
 }

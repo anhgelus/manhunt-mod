@@ -1,10 +1,8 @@
 {
 	"required": true,
 	"package": "world.anhgelus.manhunt.mixin",
-	"compatibilityLevel": "JAVA_8",
-	"mixins": [
-		"ExampleMixin"
-	],
+	"compatibilityLevel": "JAVA_17",
+	"mixins": [],
 	"injectors": {
 		"defaultRequire": 1
 	}
