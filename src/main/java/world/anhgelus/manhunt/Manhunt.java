@@ -96,7 +96,10 @@ public class Manhunt implements ModInitializer {
 		ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
 			if (alive) return;
 			final UUID uuid = oldPlayer.getUuid();
-			if (!speedrunners.contains(uuid)) return;
+			if (hunters.contains(uuid)) {
+				newPlayer.giveItemStack(new ItemStack(Items.COMPASS));
+				return;
+			}
 			speedrunners.remove(uuid);
 			if (!speedrunners.isEmpty()) return;
 			for (final ServerPlayerEntity player : newPlayer.server.getPlayerManager().getPlayerList()) {
