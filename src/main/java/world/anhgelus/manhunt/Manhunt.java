@@ -6,12 +6,15 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.command.EntitySelector;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LodestoneTrackerComponent;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.entity.mob.PiglinBruteEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.PlayerManager;
@@ -19,6 +22,8 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.math.GlobalPos;
 import net.minecraft.world.GameMode;
+import net.minecraft.world.dimension.DimensionType;
+import net.minecraft.world.dimension.DimensionTypes;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -27,11 +32,8 @@ import java.util.*;
 import static com.mojang.brigadier.builder.LiteralArgumentBuilder.literal;
 
 public class Manhunt implements ModInitializer {
-	// This logger isACompass used to write text to the console and the log file.
-	// It isACompass considered best practice to use your mod id as the logger's name.
-	// That way, it's clear which mod wrote info, warnings, and errors.
-    public static final Logger LOGGER = LogManager.getLogger("manhunt");
-    public static final String MOD_ID = "manhunt";
+	public static final String MOD_ID = "manhunt";
+	public static final Logger LOGGER = LogManager.getLogger(MOD_ID);
 
 	private final Set<UUID> hunters = new HashSet<>();
 	private final Set<UUID> speedrunners = new HashSet<>();
@@ -125,6 +127,10 @@ public class Manhunt implements ModInitializer {
 				hunters.remove(player.getUuid());
 				speedrunners.remove(player.getUuid());
 			}
+		});
+
+		ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+			if (entity instanceof PiglinBruteEntity) entity.discard();
 		});
 	}
 
