@@ -3,25 +3,22 @@ package world.anhgelus.manhunt;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
-import com.mojang.serialization.DataResult;
 import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.minecraft.command.EntitySelector;
-import net.minecraft.command.arguments.EntityArgumentType;
-import net.minecraft.datafixer.NbtOps;
+import net.minecraft.command.argument.EntityArgumentType;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.LodestoneTrackerComponent;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.NbtHelper;
-import net.minecraft.nbt.Tag;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.math.GlobalPos;
 import net.minecraft.world.GameMode;
-import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -39,6 +36,7 @@ public class Manhunt implements ModInitializer {
 	private final Set<UUID> hunters = new HashSet<>();
 	private final Set<UUID> speedrunners = new HashSet<>();
 	private final Map<UUID, UUID> map = new HashMap<>();
+	private final Map<UUID, ItemStack> compassMap = new HashMap<>();
 
 	private final Timer timer = new Timer();
 
@@ -76,7 +74,7 @@ public class Manhunt implements ModInitializer {
 		team.then(teamP);
 		final LiteralArgumentBuilder<ServerCommandSource> start = literal("start");
 		start.executes(context -> {
-			final PlayerManager pm = context.getSource().getMinecraftServer().getPlayerManager();
+			final PlayerManager pm = context.getSource().getServer().getPlayerManager();
 			for (final ServerPlayerEntity player : pm.getPlayerList()) {
 				speedrunners.remove(player.getUuid());
 				player.kill();
@@ -108,7 +106,7 @@ public class Manhunt implements ModInitializer {
 		command.then(team);
 		command.then(start);
 
-		CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) -> dispatcher.register(command));
+		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(command));
 
 		ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
 			if (alive) return;
@@ -120,7 +118,7 @@ public class Manhunt implements ModInitializer {
 			speedrunners.remove(uuid);
 			if (!speedrunners.isEmpty()) return;
 			for (final ServerPlayerEntity player : newPlayer.server.getPlayerManager().getPlayerList()) {
-				player.setGameMode(GameMode.SPECTATOR);
+				player.changeGameMode(GameMode.SPECTATOR);
 				hunters.remove(player.getUuid());
 				speedrunners.remove(player.getUuid());
 			}
@@ -128,14 +126,16 @@ public class Manhunt implements ModInitializer {
 	}
 
 	private void updateCompass(ServerPlayerEntity player, ServerPlayerEntity tracked) {
-		final ItemStack stack = new ItemStack(Items.COMPASS);
-		assert stack.getTag() != null;
-		final CompoundTag tag = stack.getTag();
-		tag.put("LodestonePos", NbtHelper.fromBlockPos(tracked.getBlockPos()));
-		final DataResult<Tag> weird = World.CODEC.encodeStart(NbtOps.INSTANCE, player.world.getRegistryKey());
-		weird.resultOrPartial(LOGGER::error).ifPresent((t) -> tag.put("LodestoneDimension", t));
-		tag.putBoolean("LodestoneTracked", true);
-		final int slot = player.inventory.getSlotWithStack(new ItemStack(Items.COMPASS));
-		player.inventory.insertStack(slot, stack);
+		/*
+		final LodestoneTrackerComponent trackerCpnt = new LodestoneTrackerComponent(Optional.of(GlobalPos.create(tracked.getWorld().getRegistryKey(), tracked.getBlockPos())), true);
+		final ItemStack is = compassMap.get(player.getUuid());
+		if (is == null) {
+			LOGGER.warn("Compass item is null");
+			return;
+		}
+		final int slot = player.getInventory().getSlotWithStack(is);
+		is.set(DataComponentTypes.LODESTONE_TRACKER, trackerCpnt);
+		player.getInventory().setStack(slot, is);
+		*/
 	}
 }
