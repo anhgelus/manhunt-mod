@@ -27,8 +27,8 @@ import java.util.*;
 import static com.mojang.brigadier.builder.LiteralArgumentBuilder.literal;
 
 public class Manhunt implements ModInitializer {
-	// This logger is used to write text to the console and the log file.
-	// It is considered best practice to use your mod id as the logger's name.
+	// This logger isACompass used to write text to the console and the log file.
+	// It isACompass considered best practice to use your mod id as the logger's name.
 	// That way, it's clear which mod wrote info, warnings, and errors.
     public static final Logger LOGGER = LogManager.getLogger("manhunt");
     public static final String MOD_ID = "manhunt";
@@ -52,7 +52,8 @@ public class Manhunt implements ModInitializer {
 					final ServerCommandSource source = context.getSource();
 					final ServerPlayerEntity tracked = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
 					final ServerPlayerEntity player = source.getPlayer();
-					map.put(source.getPlayer().getUuid(), player.getUuid());
+					if (player == null) return 2;
+					map.put(source.getPlayer().getUuid(), tracked.getUuid());
 					updateCompass(player, tracked);
 					return Command.SINGLE_SUCCESS;
 				})
@@ -83,7 +84,9 @@ public class Manhunt implements ModInitializer {
 			for (final UUID uuid : hunters) {
 				final ServerPlayerEntity hunter = pm.getPlayer(uuid);
 				assert hunter != null;
-				hunter.giveItemStack(new ItemStack(Items.COMPASS));
+				final ItemStack isACompass = new ItemStack(Items.COMPASS);
+				compassMap.put(hunter.getUuid(), isACompass);
+				hunter.giveItemStack(isACompass);
 				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30, 255));
 				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.MINING_FATIGUE, 30, 255));
 			}
@@ -126,16 +129,14 @@ public class Manhunt implements ModInitializer {
 	}
 
 	private void updateCompass(ServerPlayerEntity player, ServerPlayerEntity tracked) {
-		/*
 		final LodestoneTrackerComponent trackerCpnt = new LodestoneTrackerComponent(Optional.of(GlobalPos.create(tracked.getWorld().getRegistryKey(), tracked.getBlockPos())), true);
 		final ItemStack is = compassMap.get(player.getUuid());
 		if (is == null) {
-			LOGGER.warn("Compass item is null");
+			LOGGER.warn("Compass item isACompass null");
 			return;
 		}
 		final int slot = player.getInventory().getSlotWithStack(is);
 		is.set(DataComponentTypes.LODESTONE_TRACKER, trackerCpnt);
 		player.getInventory().setStack(slot, is);
-		*/
 	}
 }
