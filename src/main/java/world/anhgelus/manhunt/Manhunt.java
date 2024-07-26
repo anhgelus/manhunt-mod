@@ -21,6 +21,7 @@ import net.minecraft.item.Items;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
 import net.minecraft.util.math.GlobalPos;
 import net.minecraft.world.GameMode;
 import org.apache.logging.log4j.LogManager;
@@ -62,6 +63,7 @@ public class Manhunt implements ModInitializer {
 					if (player == null) return 2;
 					map.put(source.getPlayer().getUuid(), tracked.getUuid());
 					updateCompass(player, tracked);
+					context.getSource().sendFeedback(() -> Text.literal("Tracking "+tracked.getDisplayName()), false);
 					return Command.SINGLE_SUCCESS;
 				})
 		);
@@ -71,17 +73,23 @@ public class Manhunt implements ModInitializer {
 					final var p = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
                     speedrunners.remove(p.getUuid());
 					hunters.add(p.getUuid());
+					context.getSource().sendFeedback(() -> Text.literal(p.getDisplayName()+" added to hunter"), true);
 					return Command.SINGLE_SUCCESS;
 				}))
 				.then(LiteralArgumentBuilder.<ServerCommandSource>literal("speedrunner").executes(context -> {
 					final var p = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
 					hunters.remove(p.getUuid());
 					speedrunners.add(p.getUuid());
+					context.getSource().sendFeedback(() -> Text.literal(p.getDisplayName()+" added to speedrunner"), true);
 					return Command.SINGLE_SUCCESS;
 				}));
 		team.then(teamP);
 		final LiteralArgumentBuilder<ServerCommandSource> start = literal("start");
 		start.executes(context -> {
+			if (state == GameState.ON) {
+				context.getSource().sendFeedback(() -> Text.literal("Cannot start a manhunt if one is already started!"), false);
+				return Command.SINGLE_SUCCESS;
+			}
 			final PlayerManager pm = context.getSource().getServer().getPlayerManager();
 			for (final ServerPlayerEntity player : pm.getPlayerList()) {
 				player.setHealth(player.getMaxHealth());
@@ -115,6 +123,7 @@ public class Manhunt implements ModInitializer {
 					}
 				}
 			}, 60*1000, 60*1000);
+			context.getSource().sendFeedback(() -> Text.literal("Game started!"), true);
 			return Command.SINGLE_SUCCESS;
 		});
 
@@ -132,6 +141,7 @@ public class Manhunt implements ModInitializer {
 				return;
 			}
 			speedrunners.remove(uuid);
+			newPlayer.changeGameMode(GameMode.SPECTATOR);
 			if (!speedrunners.isEmpty()) return;
 			for (final ServerPlayerEntity player : newPlayer.server.getPlayerManager().getPlayerList()) {
 				player.changeGameMode(GameMode.SPECTATOR);

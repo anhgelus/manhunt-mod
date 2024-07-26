@@ -4,7 +4,7 @@ Simple server-side Fabric mod creating a manhunt in Minecraft.
 
 Made for Minecraft 1.21.
 
-Disable spawns of Piglin Brute and revert loot_table of Piglin bartering's update in Minecraft 1.16.2 (Nether is the
+Disable the spawn of Piglin Brute and revert loot_table of Piglin bartering's update in Minecraft 1.16.2 (Nether is the
 same as Minecraft 1.16.1). 
 
 ## Usage
