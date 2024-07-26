@@ -10,6 +10,8 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.command.EntitySelector;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.FoodComponent;
+import net.minecraft.component.type.FoodComponents;
 import net.minecraft.component.type.LodestoneTrackerComponent;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -39,6 +41,12 @@ public class Manhunt implements ModInitializer {
 
 	private final Timer timer = new Timer();
 
+	private enum GameState {
+		ON, OFF
+	}
+
+	private GameState state = GameState.OFF;
+
 	@Override
 	public void onInitialize() {
 		LOGGER.info("Initializing Manhunt");
@@ -48,9 +56,9 @@ public class Manhunt implements ModInitializer {
 		final LiteralArgumentBuilder<ServerCommandSource> track = literal("track");
 		track.then(RequiredArgumentBuilder.<ServerCommandSource, EntitySelector>argument("player", EntityArgumentType.player())
 				.executes(context -> {
-					final ServerCommandSource source = context.getSource();
-					final ServerPlayerEntity tracked = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
-					final ServerPlayerEntity player = source.getPlayer();
+					final var source = context.getSource();
+					final var tracked = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
+					final var player = source.getPlayer();
 					if (player == null) return 2;
 					map.put(source.getPlayer().getUuid(), tracked.getUuid());
 					updateCompass(player, tracked);
@@ -60,13 +68,13 @@ public class Manhunt implements ModInitializer {
 		final LiteralArgumentBuilder<ServerCommandSource> team = literal("team");
 		final RequiredArgumentBuilder<ServerCommandSource, EntitySelector> teamP = RequiredArgumentBuilder.argument("player", EntityArgumentType.player());
 		teamP.then(LiteralArgumentBuilder.<ServerCommandSource>literal("hunter").executes(context -> {
-					final ServerPlayerEntity p = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
+					final var p = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
                     speedrunners.remove(p.getUuid());
 					hunters.add(p.getUuid());
 					return Command.SINGLE_SUCCESS;
 				}))
 				.then(LiteralArgumentBuilder.<ServerCommandSource>literal("speedrunner").executes(context -> {
-					final ServerPlayerEntity p = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
+					final var p = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
 					hunters.remove(p.getUuid());
 					speedrunners.add(p.getUuid());
 					return Command.SINGLE_SUCCESS;
@@ -76,14 +84,20 @@ public class Manhunt implements ModInitializer {
 		start.executes(context -> {
 			final PlayerManager pm = context.getSource().getServer().getPlayerManager();
 			for (final ServerPlayerEntity player : pm.getPlayerList()) {
-				speedrunners.remove(player.getUuid());
-				player.kill();
-				speedrunners.add(player.getUuid());
+				player.setHealth(player.getMaxHealth());
+				player.setExperienceLevel(0);
+				player.getInventory().clear();
+				player.getHungerManager().eat(
+						new FoodComponent(20, 20.0f, true, 0f, Optional.empty(), new ArrayList<>())
+				);
+				final var spawn = player.getServerWorld().getSpawnPos();
+				player.teleport(player.getServerWorld(), spawn.getX(), spawn.getY(), spawn.getZ(), 0f, 0f);
 			}
+			state = GameState.ON;
 			for (final UUID uuid : hunters) {
-				final ServerPlayerEntity hunter = pm.getPlayer(uuid);
+				final var hunter = pm.getPlayer(uuid);
 				assert hunter != null;
-				final ItemStack isACompass = new ItemStack(Items.COMPASS);
+				final var isACompass = new ItemStack(Items.COMPASS);
 				compassMap.put(hunter.getUuid(), isACompass);
 				hunter.giveItemStack(isACompass);
 				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30, 255));
@@ -111,8 +125,8 @@ public class Manhunt implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(command));
 
 		ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
-			if (alive) return;
-			final UUID uuid = oldPlayer.getUuid();
+			if (state == GameState.OFF) return;
+			final var uuid = oldPlayer.getUuid();
 			if (hunters.contains(uuid)) {
 				newPlayer.giveItemStack(new ItemStack(Items.COMPASS));
 				return;
@@ -123,6 +137,7 @@ public class Manhunt implements ModInitializer {
 				player.changeGameMode(GameMode.SPECTATOR);
 				hunters.remove(player.getUuid());
 				speedrunners.remove(player.getUuid());
+				state = GameState.OFF;
 			}
 		});
 
@@ -132,13 +147,17 @@ public class Manhunt implements ModInitializer {
 	}
 
 	private void updateCompass(ServerPlayerEntity player, ServerPlayerEntity tracked) {
-		final LodestoneTrackerComponent trackerCpnt = new LodestoneTrackerComponent(Optional.of(GlobalPos.create(tracked.getWorld().getRegistryKey(), tracked.getBlockPos())), true);
-		final ItemStack is = compassMap.get(player.getUuid());
+		final var trackerCpnt = new LodestoneTrackerComponent(Optional.of(GlobalPos.create(tracked.getWorld().getRegistryKey(), tracked.getBlockPos())), true);
+		final var is = compassMap.get(player.getUuid());
 		if (is == null) {
 			LOGGER.warn("Compass item is null");
 			return;
 		}
 		final int slot = player.getInventory().getSlotWithStack(is);
+		if (slot == -1) {
+			LOGGER.warn("ItemStack not found");
+			return;
+		}
 		is.set(DataComponentTypes.LODESTONE_TRACKER, trackerCpnt);
 		player.getInventory().setStack(slot, is);
 	}
