@@ -5,6 +5,7 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.command.EntitySelector;
@@ -63,7 +64,8 @@ public class Manhunt implements ModInitializer {
 					if (player == null) return 2;
 					map.put(source.getPlayer().getUuid(), tracked.getUuid());
 					updateCompass(player, tracked);
-					context.getSource().sendFeedback(() -> Text.literal("Tracking "+tracked.getDisplayName()), false);
+					assert tracked.getDisplayName() != null;
+					context.getSource().sendFeedback(() -> Text.literal("Tracking "+tracked.getDisplayName().getString()), false);
 					return Command.SINGLE_SUCCESS;
 				})
 		);
@@ -73,14 +75,16 @@ public class Manhunt implements ModInitializer {
 					final var p = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
                     speedrunners.remove(p.getUuid());
 					hunters.add(p.getUuid());
-					context.getSource().sendFeedback(() -> Text.literal(p.getDisplayName()+" added to hunter"), true);
+					assert p.getDisplayName() != null;
+					context.getSource().sendFeedback(() -> Text.literal(p.getDisplayName().getString()+" added to hunter"), true);
 					return Command.SINGLE_SUCCESS;
 				}))
 				.then(LiteralArgumentBuilder.<ServerCommandSource>literal("speedrunner").executes(context -> {
 					final var p = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
 					hunters.remove(p.getUuid());
 					speedrunners.add(p.getUuid());
-					context.getSource().sendFeedback(() -> Text.literal(p.getDisplayName()+" added to speedrunner"), true);
+					assert p.getDisplayName() != null;
+					context.getSource().sendFeedback(() -> Text.literal(p.getDisplayName().getString()+" added to speedrunner"), true);
 					return Command.SINGLE_SUCCESS;
 				}));
 		team.then(teamP);
