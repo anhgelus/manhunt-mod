@@ -77,14 +77,17 @@ public class Manhunt implements ModInitializer {
 		final LiteralArgumentBuilder<ServerCommandSource> start = literal("start");
 		start.executes(context -> {
 			final PlayerManager pm = context.getSource().getMinecraftServer().getPlayerManager();
+			for (final ServerPlayerEntity player : pm.getPlayerList()) {
+				speedrunners.remove(player.getUuid());
+				player.kill();
+				speedrunners.add(player.getUuid());
+			}
 			for (final UUID uuid : hunters) {
 				final ServerPlayerEntity hunter = pm.getPlayer(uuid);
-                assert hunter != null;
-                hunter.giveItemStack(new ItemStack(Items.COMPASS));
+				assert hunter != null;
+				hunter.giveItemStack(new ItemStack(Items.COMPASS));
 				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30, 255));
-			}
-			for (final ServerPlayerEntity player : pm.getPlayerList()) {
-				player.kill();
+				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.MINING_FATIGUE, 30, 255));
 			}
 			timer.schedule(new TimerTask() {
 				@Override
@@ -130,9 +133,7 @@ public class Manhunt implements ModInitializer {
 		final CompoundTag tag = stack.getTag();
 		tag.put("LodestonePos", NbtHelper.fromBlockPos(tracked.getBlockPos()));
 		final DataResult<Tag> weird = World.CODEC.encodeStart(NbtOps.INSTANCE, player.world.getRegistryKey());
-		weird.resultOrPartial(LOGGER::error).ifPresent((t) -> {
-			tag.put("LodestoneDimension", t);
-		});
+		weird.resultOrPartial(LOGGER::error).ifPresent((t) -> tag.put("LodestoneDimension", t));
 		tag.putBoolean("LodestoneTracked", true);
 		final int slot = player.inventory.getSlotWithStack(new ItemStack(Items.COMPASS));
 		player.inventory.insertStack(slot, stack);
