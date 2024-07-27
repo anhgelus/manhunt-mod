@@ -111,6 +111,9 @@ public class Manhunt implements ModInitializer {
 				hunter.giveItemStack(isACompass);
 				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30*20, 255));
 				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.MINING_FATIGUE, 30*20, 255));
+				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.LEVITATION, 30*20, 255));
+				// :eyes:
+				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 30*20, 255));
 			}
 			timer.schedule(new TimerTask() {
 				@Override
