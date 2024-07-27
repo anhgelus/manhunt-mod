@@ -1,0 +1,11 @@
+{
+  "required": true,
+  "package": "world.anhgelus.manhunt.mixins",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "Tracker"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

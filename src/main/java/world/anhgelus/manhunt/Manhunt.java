@@ -160,6 +160,9 @@ public class Manhunt implements ModInitializer {
 
 	private void updateCompass(ServerPlayerEntity player, ServerPlayerEntity tracked) {
 		final var trackerCpnt = new LodestoneTrackerComponent(Optional.of(GlobalPos.create(tracked.getWorld().getRegistryKey(), tracked.getBlockPos())), true);
+		LOGGER.info(tracked.getWorld().getRegistryKey().toString());
+		LOGGER.info(tracked.getBlockPos().toString());
+		LOGGER.info(trackerCpnt.toString());
 		ItemStack is = null;
 		int slot = PlayerInventory.NOT_FOUND;
 		final var inv = player.getInventory();
