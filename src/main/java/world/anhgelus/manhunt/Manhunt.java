@@ -121,7 +121,7 @@ public class Manhunt implements ModInitializer {
 					for (final UUID uuid : hunters) {
 						final ServerPlayerEntity hunter = pm.getPlayer(uuid);
 						if (hunter == null) continue;
-						final ServerPlayerEntity tracked = pm.getPlayer(uuid);
+						final ServerPlayerEntity tracked = pm.getPlayer(map.get(uuid));
 						if (tracked == null) continue;
 						updateCompass(hunter, tracked);
 					}
