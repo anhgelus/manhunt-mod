@@ -5,18 +5,17 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.command.EntitySelector;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FoodComponent;
-import net.minecraft.component.type.FoodComponents;
 import net.minecraft.component.type.LodestoneTrackerComponent;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.PiglinBruteEntity;
+import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.server.PlayerManager;
@@ -38,16 +37,15 @@ public class Manhunt implements ModInitializer {
 
 	private final Set<UUID> hunters = new HashSet<>();
 	private final Set<UUID> speedrunners = new HashSet<>();
-	private final Map<UUID, UUID> map = new HashMap<>();
-	private final Map<UUID, ItemStack> compassMap = new HashMap<>();
+	private final Map<UUID, UUID> trackedMap = new HashMap<>();
 
 	private final Timer timer = new Timer();
 
-	private enum GameState {
+	private enum State {
 		ON, OFF
 	}
 
-	private GameState state = GameState.OFF;
+	private State state = State.OFF;
 
 	@Override
 	public void onInitialize() {
@@ -62,7 +60,7 @@ public class Manhunt implements ModInitializer {
 					final var tracked = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
 					final var player = source.getPlayer();
 					if (player == null) return 2;
-					map.put(source.getPlayer().getUuid(), tracked.getUuid());
+					trackedMap.put(source.getPlayer().getUuid(), tracked.getUuid());
 					updateCompass(player, tracked);
 					assert tracked.getDisplayName() != null;
 					context.getSource().sendFeedback(() -> Text.literal("Tracking "+tracked.getDisplayName().getString()), false);
@@ -90,7 +88,7 @@ public class Manhunt implements ModInitializer {
 		team.then(teamP);
 		final LiteralArgumentBuilder<ServerCommandSource> start = literal("start");
 		start.executes(context -> {
-			if (state == GameState.ON) {
+			if (state == State.ON) {
 				context.getSource().sendFeedback(() -> Text.literal("Cannot start a manhunt if one is already started!"), false);
 				return Command.SINGLE_SUCCESS;
 			}
@@ -105,12 +103,11 @@ public class Manhunt implements ModInitializer {
 				final var spawn = player.getServerWorld().getSpawnPos();
 				player.teleport(player.getServerWorld(), spawn.getX(), spawn.getY(), spawn.getZ(), 0f, 0f);
 			}
-			state = GameState.ON;
+			state = State.ON;
 			for (final UUID uuid : hunters) {
 				final var hunter = pm.getPlayer(uuid);
 				assert hunter != null;
 				final var isACompass = new ItemStack(Items.COMPASS);
-				compassMap.put(hunter.getUuid(), isACompass);
 				hunter.giveItemStack(isACompass);
 				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30*20, 255));
 				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.MINING_FATIGUE, 30*20, 255));
@@ -121,12 +118,12 @@ public class Manhunt implements ModInitializer {
 					for (final UUID uuid : hunters) {
 						final ServerPlayerEntity hunter = pm.getPlayer(uuid);
 						if (hunter == null) continue;
-						final ServerPlayerEntity tracked = pm.getPlayer(map.get(uuid));
+						final ServerPlayerEntity tracked = pm.getPlayer(trackedMap.get(uuid));
 						if (tracked == null) continue;
 						updateCompass(hunter, tracked);
 					}
 				}
-			}, 60*1000, 60*1000);
+			}, 30*1000, 60*1000);
 			context.getSource().sendFeedback(() -> Text.literal("Game started!"), true);
 			return Command.SINGLE_SUCCESS;
 		});
@@ -138,7 +135,7 @@ public class Manhunt implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(command));
 
 		ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
-			if (state == GameState.OFF) return;
+			if (state == State.OFF) return;
 			final var uuid = oldPlayer.getUuid();
 			if (hunters.contains(uuid)) {
 				newPlayer.giveItemStack(new ItemStack(Items.COMPASS));
@@ -151,8 +148,9 @@ public class Manhunt implements ModInitializer {
 				player.changeGameMode(GameMode.SPECTATOR);
 				hunters.remove(player.getUuid());
 				speedrunners.remove(player.getUuid());
-				state = GameState.OFF;
 			}
+			state = State.OFF;
+			timer.cancel();
 		});
 
 		ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
@@ -162,17 +160,33 @@ public class Manhunt implements ModInitializer {
 
 	private void updateCompass(ServerPlayerEntity player, ServerPlayerEntity tracked) {
 		final var trackerCpnt = new LodestoneTrackerComponent(Optional.of(GlobalPos.create(tracked.getWorld().getRegistryKey(), tracked.getBlockPos())), true);
-		final var is = compassMap.get(player.getUuid());
+		ItemStack is = null;
+		int slot = PlayerInventory.NOT_FOUND;
+		final var inv = player.getInventory();
+		if (inv.getMainHandStack().isOf(Items.COMPASS)) {
+			is = inv.getMainHandStack();
+			slot = inv.getSlotWithStack(is);
+		} else if (inv.getStack(PlayerInventory.OFF_HAND_SLOT).isOf(Items.COMPASS)) {
+			is = inv.getStack(PlayerInventory.OFF_HAND_SLOT);
+			slot = PlayerInventory.OFF_HAND_SLOT;
+		} else {
+			for (int i = 0; i < PlayerInventory.MAIN_SIZE && is == null; i++) {
+				final var stack = inv.getStack(i);
+				if (stack.isOf(Items.COMPASS)) {
+					is = stack;
+					slot = i;
+				}
+			}
+		}
 		if (is == null) {
 			LOGGER.warn("Compass item is null");
-			return;
-		}
-		final int slot = player.getInventory().getSlotWithStack(is);
-		if (slot == -1) {
-			LOGGER.warn("ItemStack not found");
-			return;
+			is = new ItemStack(Items.COMPASS);
 		}
 		is.set(DataComponentTypes.LODESTONE_TRACKER, trackerCpnt);
-		player.getInventory().setStack(slot, is);
+		if (slot == PlayerInventory.NOT_FOUND) {
+			player.giveItemStack(is);
+			return;
+		}
+		inv.setStack(slot, is);
 	}
 }
