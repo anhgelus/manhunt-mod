@@ -58,12 +58,17 @@ public class Manhunt implements ModInitializer {
 				.executes(context -> {
 					final var source = context.getSource();
 					final var tracked = (ServerPlayerEntity) EntityArgumentType.getEntity(context, "player");
+					assert tracked.getDisplayName() != null;
 					final var player = source.getPlayer();
 					if (player == null) return 2;
-					trackedMap.put(source.getPlayer().getUuid(), tracked.getUuid());
+					final var uuid = player.getUuid();
+					if (trackedMap.get(uuid) != null && trackedMap.get(uuid) == tracked.getUuid()) {
+						source.sendFeedback(() -> Text.literal("Already tracking "+tracked.getDisplayName().getString()), false);
+						return Command.SINGLE_SUCCESS;
+					}
+					trackedMap.put(player.getUuid(), tracked.getUuid());
 					updateCompass(player, tracked);
-					assert tracked.getDisplayName() != null;
-					context.getSource().sendFeedback(() -> Text.literal("Tracking "+tracked.getDisplayName().getString()), false);
+					source.sendFeedback(() -> Text.literal("Tracking "+tracked.getDisplayName().getString()), false);
 					return Command.SINGLE_SUCCESS;
 				})
 		);
@@ -87,6 +92,7 @@ public class Manhunt implements ModInitializer {
 				}));
 		team.then(teamP);
 		final LiteralArgumentBuilder<ServerCommandSource> start = literal("start");
+		start.requires(source -> source.hasPermissionLevel(2));
 		start.executes(context -> {
 			if (state == State.ON) {
 				context.getSource().sendFeedback(() -> Text.literal("Cannot start a manhunt if one is already started!"), false);
@@ -111,29 +117,24 @@ public class Manhunt implements ModInitializer {
 				hunter.giveItemStack(isACompass);
 				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30*20, 255));
 				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.MINING_FATIGUE, 30*20, 255));
-				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.LEVITATION, 30*20, 255));
-				// :eyes:
-				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.BLINDNESS, 30*20, 255));
 			}
-			timer.schedule(new TimerTask() {
-				@Override
-				public void run() {
-					for (final UUID uuid : hunters) {
-						final ServerPlayerEntity hunter = pm.getPlayer(uuid);
-						if (hunter == null) continue;
-						final ServerPlayerEntity tracked = pm.getPlayer(trackedMap.get(uuid));
-						if (tracked == null) continue;
-						updateCompass(hunter, tracked);
-					}
-				}
-			}, 30*1000, 60*1000);
+			setTimer(pm);
 			context.getSource().sendFeedback(() -> Text.literal("Game started!"), true);
+			return Command.SINGLE_SUCCESS;
+		});
+
+		final LiteralArgumentBuilder<ServerCommandSource> resetTimer = literal("reset-timer");
+		resetTimer.requires(source -> source.hasPermissionLevel(2));
+		resetTimer.executes(context -> {
+			setTimer(context.getSource().getServer().getPlayerManager());
+			context.getSource().sendFeedback(() -> Text.literal("Timer reset"), true);
 			return Command.SINGLE_SUCCESS;
 		});
 
 		command.then(track);
 		command.then(team);
 		command.then(start);
+		command.then(resetTimer);
 
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> dispatcher.register(command));
 
@@ -159,6 +160,21 @@ public class Manhunt implements ModInitializer {
 		ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
 			if (entity instanceof PiglinBruteEntity) entity.discard();
 		});
+	}
+
+	private void setTimer(PlayerManager pm) {
+		timer.schedule(new TimerTask() {
+			@Override
+			public void run() {
+				for (final UUID uuid : hunters) {
+					final ServerPlayerEntity hunter = pm.getPlayer(uuid);
+					if (hunter == null) continue;
+					final ServerPlayerEntity tracked = pm.getPlayer(trackedMap.get(uuid));
+					if (tracked == null) continue;
+					updateCompass(hunter, tracked);
+				}
+			}
+		}, 30*1000, 15*1000);
 	}
 
 	private void updateCompass(ServerPlayerEntity player, ServerPlayerEntity tracked) {
