@@ -12,6 +12,8 @@ import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.FoodComponent;
 import net.minecraft.component.type.LodestoneTrackerComponent;
+import net.minecraft.entity.attribute.EntityAttributeModifier;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.mob.PiglinBruteEntity;
@@ -22,8 +24,10 @@ import net.minecraft.server.PlayerManager;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.GlobalPos;
 import net.minecraft.world.GameMode;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -115,9 +119,45 @@ public class Manhunt implements ModInitializer {
 				assert hunter != null;
 				final var isACompass = new ItemStack(Items.COMPASS);
 				hunter.giveItemStack(isACompass);
-				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.SLOWNESS, 30*20, 255));
-				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.MINING_FATIGUE, 30*20, 255));
+				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.MINING_FATIGUE, 30*20, 255, false, false));
+				var attr = hunter.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
+				if (attr != null) {
+					final var modifier = new EntityAttributeModifier(
+							Identifier.of("manhunt.speed"),
+							-1,
+							EntityAttributeModifier.Operation.ADD_MULTIPLIED_BASE
+					);
+					attr.addTemporaryModifier(modifier);
+				}
+				attr = hunter.getAttributeInstance(EntityAttributes.GENERIC_GRAVITY);
+				if (attr != null) {
+					final var modifier = new EntityAttributeModifier(
+							Identifier.of("manhunt.gravity"),
+							5,
+							EntityAttributeModifier.Operation.ADD_VALUE
+					);
+					attr.addTemporaryModifier(modifier);
+				}
+                LOGGER.info("Added modifiers to {}", hunter.getDisplayName());
 			}
+			timer.schedule(new TimerTask() {
+				@Override
+				public void run() {
+					LOGGER.info("Removing modifier to hunters");
+					for (final UUID uuid : hunters) {
+						final var hunter = pm.getPlayer(uuid);
+						assert hunter != null;
+						var attr = hunter.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
+						if (attr != null) {
+							attr.removeModifier(Identifier.of("manhunt.speed"));
+						}
+						attr = hunter.getAttributeInstance(EntityAttributes.GENERIC_GRAVITY);
+						if (attr != null) {
+							attr.removeModifier(Identifier.of("manhunt.gravity"));
+						}
+					}
+				}
+			}, 30*1000);
 			setTimer(pm);
 			context.getSource().sendFeedback(() -> Text.literal("Game started!"), true);
 			return Command.SINGLE_SUCCESS;
