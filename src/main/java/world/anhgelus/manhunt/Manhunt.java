@@ -166,6 +166,7 @@ public class Manhunt implements ModInitializer {
 		final LiteralArgumentBuilder<ServerCommandSource> resetTimer = literal("reset-timer");
 		resetTimer.requires(source -> source.hasPermissionLevel(2));
 		resetTimer.executes(context -> {
+			state = State.ON;
 			setTimer(context.getSource().getServer().getPlayerManager());
 			context.getSource().sendFeedback(() -> Text.literal("Timer reset"), true);
 			return Command.SINGLE_SUCCESS;
