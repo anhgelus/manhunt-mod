@@ -28,3 +28,10 @@ update automatically the compass.
 `/manhunt start` starts the manhunt.
 
 `/manhunt reset-timer` resets all timers (useful after a server crash).
+
+## Technos
+
+- Fabric
+- Fabric API
+- Yarn Mappings
+- MidnightLib (embedded in jar)
