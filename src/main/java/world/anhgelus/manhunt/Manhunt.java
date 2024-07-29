@@ -3,6 +3,7 @@ package world.anhgelus.manhunt;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import eu.midnightdust.lib.config.MidnightConfig;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
@@ -54,6 +55,7 @@ public class Manhunt implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		LOGGER.info("Initializing Manhunt");
+		MidnightConfig.init(MOD_ID, Config.class);
 
 		final LiteralArgumentBuilder<ServerCommandSource> command = literal("manhunt");
 
@@ -215,7 +217,7 @@ public class Manhunt implements ModInitializer {
 					updateCompass(hunter, tracked);
 				}
 			}
-		}, 30*1000, 15*1000);
+		}, Config.secondsBeforeRelease*1000L, Config.updateCompassEach*1000L);
 	}
 
 	private void updateCompass(ServerPlayerEntity player, ServerPlayerEntity tracked) {
