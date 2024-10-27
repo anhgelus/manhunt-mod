@@ -29,6 +29,22 @@ update automatically the compass.
 
 `/manhunt reset-timer` resets all timers (useful after a server crash).
 
+## Config file
+
+You can config the time before the release of the hunters and the time between two compass' updates by modifying the config 
+file `config/manhunt.json`.
+
+The default config file is:
+```json
+{
+  "secondsBeforeRelease": 30,
+  "updateCompassEach": 15
+}
+```
+
+- `secondsBeforeRelease` is the time before the release of the hunters
+- `updateCompassEach` is the time between two compass' updates (fewer means more updates)
+
 ## Technos
 
 - Fabric
