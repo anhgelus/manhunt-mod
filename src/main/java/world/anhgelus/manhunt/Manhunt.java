@@ -27,7 +27,9 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.GlobalPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
+import net.minecraft.world.TeleportTarget;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -112,10 +114,10 @@ public class Manhunt implements ModInitializer {
 				player.setExperienceLevel(0);
 				player.getInventory().clear();
 				player.getHungerManager().eat(
-						new FoodComponent(20, 20.0f, true, 0f, Optional.empty(), new ArrayList<>())
+						new FoodComponent(20, 20.0f, true)
 				);
 				final var spawn = player.getServerWorld().getSpawnPos();
-				player.teleport(player.getServerWorld(), spawn.getX(), spawn.getY(), spawn.getZ(), 0f, 0f);
+				player.teleport(spawn.getX(), spawn.getY(), spawn.getZ(), false);
 			}
 			state = State.ON;
 			for (final UUID uuid : hunters) {
@@ -124,7 +126,7 @@ public class Manhunt implements ModInitializer {
 				final var isACompass = new ItemStack(Items.COMPASS);
 				hunter.giveItemStack(isACompass);
 				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.MINING_FATIGUE, Config.secondsBeforeRelease*20, 255, false, false));
-				var attr = hunter.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
+				var attr = hunter.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
 				if (attr != null) {
 					final var modifier = new EntityAttributeModifier(
 							Identifier.of("manhunt.speed"),
@@ -133,7 +135,7 @@ public class Manhunt implements ModInitializer {
 					);
 					attr.addTemporaryModifier(modifier);
 				}
-				attr = hunter.getAttributeInstance(EntityAttributes.GENERIC_GRAVITY);
+				attr = hunter.getAttributeInstance(EntityAttributes.GRAVITY);
 				if (attr != null) {
 					final var modifier = new EntityAttributeModifier(
 							Identifier.of("manhunt.gravity"),
@@ -151,17 +153,17 @@ public class Manhunt implements ModInitializer {
 					for (final UUID uuid : hunters) {
 						final var hunter = pm.getPlayer(uuid);
 						assert hunter != null;
-						var attr = hunter.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
+						var attr = hunter.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
 						if (attr != null) {
 							attr.removeModifier(Identifier.of("manhunt.speed"));
 						}
-						attr = hunter.getAttributeInstance(EntityAttributes.GENERIC_GRAVITY);
+						attr = hunter.getAttributeInstance(EntityAttributes.GRAVITY);
 						if (attr != null) {
 							attr.removeModifier(Identifier.of("manhunt.gravity"));
 						}
 					}
 				}
-			}, Config.secondsBeforeRelease*1000);
+			}, Config.secondsBeforeRelease*1000L);
 			setTimer(pm);
 			context.getSource().sendFeedback(() -> Text.literal("Game started!"), true);
 			return Command.SINGLE_SUCCESS;
