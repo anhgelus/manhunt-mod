@@ -56,6 +56,8 @@ public class Manhunt implements ModInitializer {
 	public void onInitialize() {
 		LOGGER.info("Initializing Manhunt");
 		MidnightConfig.init(MOD_ID, Config.class);
+		LOGGER.info(Config.secondsBeforeRelease);
+		LOGGER.info(Config.updateCompassEach);
 
 		final LiteralArgumentBuilder<ServerCommandSource> command = literal("manhunt");
 
@@ -121,7 +123,7 @@ public class Manhunt implements ModInitializer {
 				assert hunter != null;
 				final var isACompass = new ItemStack(Items.COMPASS);
 				hunter.giveItemStack(isACompass);
-				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.MINING_FATIGUE, 30*20, 255, false, false));
+				hunter.addStatusEffect(new StatusEffectInstance(StatusEffects.MINING_FATIGUE, Config.secondsBeforeRelease*20, 255, false, false));
 				var attr = hunter.getAttributeInstance(EntityAttributes.GENERIC_MOVEMENT_SPEED);
 				if (attr != null) {
 					final var modifier = new EntityAttributeModifier(
@@ -159,7 +161,7 @@ public class Manhunt implements ModInitializer {
 						}
 					}
 				}
-			}, 30*1000);
+			}, Config.secondsBeforeRelease*1000);
 			setTimer(pm);
 			context.getSource().sendFeedback(() -> Text.literal("Game started!"), true);
 			return Command.SINGLE_SUCCESS;
