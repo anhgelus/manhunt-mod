@@ -240,8 +240,8 @@ public class Manhunt implements ModInitializer {
 		ItemStack is = null;
 		int slot = PlayerInventory.NOT_FOUND;
 		final var inv = player.getInventory();
-		if (inv.getMainHandStack().isOf(Items.COMPASS)) {
-			is = inv.getMainHandStack();
+		if (inv.getSelectedStack().isOf(Items.COMPASS)) {
+			is = inv.getSelectedStack();
 			slot = inv.getSlotWithStack(is);
 		} else if (inv.getStack(PlayerInventory.OFF_HAND_SLOT).isOf(Items.COMPASS)) {
 			is = inv.getStack(PlayerInventory.OFF_HAND_SLOT);
