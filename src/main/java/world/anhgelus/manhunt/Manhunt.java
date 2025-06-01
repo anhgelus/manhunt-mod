@@ -8,6 +8,7 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.command.EntitySelector;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.component.DataComponentTypes;
@@ -209,6 +210,10 @@ public class Manhunt implements ModInitializer {
 			if (!(entity instanceof PiglinBruteEntity)) return;
 			EntityType.PIGLIN.spawn(world, entity.getBlockPos(), SpawnReason.MOB_SUMMONED);
 			entity.discard();
+		});
+
+		ServerLifecycleEvents.SERVER_STOPPED.register((server) -> {
+			timer.cancel();
 		});
 	}
 
