@@ -8,7 +8,6 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.command.EntitySelector;
 import net.minecraft.command.argument.EntityArgumentType;
 import net.minecraft.component.DataComponentTypes;
@@ -34,6 +33,8 @@ import net.minecraft.util.math.GlobalPos;
 import net.minecraft.world.GameMode;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import world.anhgelus.manhunt.timer.TickTask;
+import world.anhgelus.manhunt.timer.TimerAccess;
 
 import java.util.*;
 
@@ -47,15 +48,12 @@ public class Manhunt implements ModInitializer {
     private final Set<UUID> speedrunners = new HashSet<>();
     private final Map<UUID, UUID> trackedMap = new HashMap<>();
 
-    private final Timer timer = new Timer();
     private State state = State.OFF;
 
     @Override
     public void onInitialize() {
         LOGGER.info("Initializing Manhunt");
         MidnightConfig.init(MOD_ID, Config.class);
-        LOGGER.info(Config.secondsBeforeRelease);
-        LOGGER.info(Config.updateCompassEach);
 
         final LiteralArgumentBuilder<ServerCommandSource> command = literal("manhunt");
 
@@ -100,11 +98,14 @@ public class Manhunt implements ModInitializer {
         final LiteralArgumentBuilder<ServerCommandSource> start = literal("start");
         start.requires(CommandManager.requirePermissionLevel(CommandManager.GAMEMASTERS_CHECK));
         start.executes(context -> {
+            final var source = context.getSource();
             if (state == State.ON) {
-                context.getSource().sendFeedback(() -> Text.literal("Cannot start a manhunt if one is already started!"), false);
+                source.sendFeedback(() -> Text.literal("Cannot start a manhunt if one is already started!"), false);
                 return Command.SINGLE_SUCCESS;
             }
-            final PlayerManager pm = context.getSource().getServer().getPlayerManager();
+            final var server = source.getServer();
+            final var timer = TimerAccess.getTimerFromOverworld(server);
+            final PlayerManager pm = server.getPlayerManager();
             for (final ServerPlayerEntity player : pm.getPlayerList()) {
                 player.setHealth(player.getMaxHealth());
                 player.setExperienceLevel(0);
@@ -142,26 +143,24 @@ public class Manhunt implements ModInitializer {
                 }
                 LOGGER.info("Added modifiers to {}", hunter.getDisplayName());
             }
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    LOGGER.info("Removing modifier to hunters");
-                    for (final UUID uuid : hunters) {
-                        final var hunter = pm.getPlayer(uuid);
-                        assert hunter != null;
-                        var attr = hunter.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
-                        if (attr != null) {
-                            attr.removeModifier(Identifier.of("manhunt.speed"));
-                        }
-                        attr = hunter.getAttributeInstance(EntityAttributes.GRAVITY);
-                        if (attr != null) {
-                            attr.removeModifier(Identifier.of("manhunt.gravity"));
-                        }
+            timer.dds_runTask(new TickTask(() -> {
+                LOGGER.info("Removing modifier to hunters");
+                for (final UUID uuid : hunters) {
+                    final var hunter = pm.getPlayer(uuid);
+                    assert hunter != null;
+                    var attr = hunter.getAttributeInstance(EntityAttributes.MOVEMENT_SPEED);
+                    if (attr != null) {
+                        attr.removeModifier(Identifier.of("manhunt.speed"));
+                    }
+                    attr = hunter.getAttributeInstance(EntityAttributes.GRAVITY);
+                    if (attr != null) {
+                        attr.removeModifier(Identifier.of("manhunt.gravity"));
                     }
                 }
-            }, Config.secondsBeforeRelease * 1000L);
+                pm.broadcast(Text.of("Hunters released!"), false);
+            }, Config.secondsBeforeRelease * 20L));
             setTimer(pm);
-            context.getSource().sendFeedback(() -> Text.literal("Game started!"), true);
+            source.sendFeedback(() -> Text.literal("Game started!"), true);
             return Command.SINGLE_SUCCESS;
         });
 
@@ -199,7 +198,7 @@ public class Manhunt implements ModInitializer {
                 speedrunners.remove(player.getUuid());
             }
             state = State.OFF;
-            timer.cancel();
+            TimerAccess.getTimerFromOverworld(server).dds_cancel();
         });
 
         ServerEntityEvents.ENTITY_LOAD.register((entity, world) -> {
@@ -207,25 +206,18 @@ public class Manhunt implements ModInitializer {
             EntityType.PIGLIN.spawn(world, entity.getBlockPos(), SpawnReason.MOB_SUMMONED);
             entity.discard();
         });
-
-        ServerLifecycleEvents.SERVER_STOPPED.register((server) -> {
-            timer.cancel();
-        });
     }
 
     private void setTimer(PlayerManager pm) {
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                for (final UUID uuid : hunters) {
-                    final ServerPlayerEntity hunter = pm.getPlayer(uuid);
-                    if (hunter == null) continue;
-                    final ServerPlayerEntity tracked = pm.getPlayer(trackedMap.get(uuid));
-                    if (tracked == null) continue;
-                    updateCompass(hunter, tracked);
-                }
+        TimerAccess.getTimerFromOverworld(pm.getServer()).dds_runTask(new TickTask(() -> {
+            for (final UUID uuid : hunters) {
+                final ServerPlayerEntity hunter = pm.getPlayer(uuid);
+                if (hunter == null) continue;
+                final ServerPlayerEntity tracked = pm.getPlayer(trackedMap.get(uuid));
+                if (tracked == null) continue;
+                updateCompass(hunter, tracked);
             }
-        }, Config.secondsBeforeRelease * 1000L, Config.updateCompassEach * 1000L);
+        }, Config.secondsBeforeRelease * 20L, Config.updateCompassEach * 20L));
     }
 
     private void updateCompass(ServerPlayerEntity player, ServerPlayerEntity tracked) {

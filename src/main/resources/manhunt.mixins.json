@@ -3,7 +3,8 @@
   "package": "world.anhgelus.manhunt.mixins",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "Tracker"
+    "Tracker",
+    "WorldTimerAccess"
   ],
   "injectors": {
     "defaultRequire": 1
