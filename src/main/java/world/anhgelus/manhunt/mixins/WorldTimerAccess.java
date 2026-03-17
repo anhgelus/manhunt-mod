@@ -35,6 +35,7 @@ public class WorldTimerAccess implements TimerAccess {
     @Override
     public void dds_cancel() {
         tasks.stream().filter(TickTask::isRunning).forEach(TickTask::cancel);
+        tasks.clear();
     }
 
     @Override
