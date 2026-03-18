@@ -12,7 +12,7 @@ same as Minecraft 1.16.1).
 ## Why did I create this mod?
 
 Because there was no server-side Minecraft mod for the latest Minecraft version.
-In addition to this, these mods do not revert the Nether which is essential for speedrunning the game, and they do not 
+In addition to this, these mods do not revert the Nether which is essential for speedrunning the game, and they do not
 update automatically the compass.
 
 ## Usage
@@ -20,6 +20,7 @@ update automatically the compass.
 `/manhunt` is the main command.
 
 `/manhunt team` edits the team.
+
 - `/manhunt team <player> hunter` adds the player to the hunters.
 - `/manhunt team <player> speedrunner` adds the player to the speedrunners.
 
@@ -31,10 +32,12 @@ update automatically the compass.
 
 ## Config file
 
-You can config the time before the release of the hunters and the time between two compass' updates by modifying the config 
+You can config the time before the release of the hunters and the time between two compass' updates by modifying the
+config
 file `config/manhunt.json`.
 
 The default config file is:
+
 ```json
 {
   "secondsBeforeRelease": 30,

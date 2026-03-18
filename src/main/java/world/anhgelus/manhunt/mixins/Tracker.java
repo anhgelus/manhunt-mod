@@ -9,8 +9,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(LodestoneTrackerComponent.class)
 public class Tracker {
-    @Inject(method = "forWorld", at = @At("HEAD"), cancellable = true)
-    public void forWorld(ServerWorld world, CallbackInfoReturnable<LodestoneTrackerComponent> cir) {
-        cir.setReturnValue((LodestoneTrackerComponent) (Object) this);
-    }
+	@Inject(method = "forWorld", at = @At("HEAD"), cancellable = true)
+	public void forWorld(ServerWorld world, CallbackInfoReturnable<LodestoneTrackerComponent> cir) {
+		cir.setReturnValue((LodestoneTrackerComponent) (Object) this);
+	}
 }
